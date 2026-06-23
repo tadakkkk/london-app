@@ -30,18 +30,18 @@ const store = {
 
 /* europe events seeded by month (recurring annual highlights · verify exact dates each year) */
 const EVENTS_BY_MONTH = {
-  "01": ["vienna new year's concert", "venice carnival begins (late jan)", "northern lights season · lapland / tromsø"],
-  "02": ["venice carnival", "nice carnival", "snow season · lapland"],
-  "03": ["keukenhof tulips open · netherlands (mid–late mar)", "paris cherry blossoms (late mar)", "st patrick's · dublin (mar 17)"],
-  "04": ["keukenhof tulips peak", "seville feria · spain", "easter markets across europe"],
-  "05": ["keukenhof until early may", "eurovision", "cannes film festival (mid may)"],
-  "06": ["midsummer · nordics (~jun 21)", "italy / greece season opens", "long white nights up north"],
-  "07": ["running of the bulls · pamplona (jul 6–14)", "avignon festival", "mediterranean peak"],
-  "08": ["edinburgh fringe", "la tomatina · spain (last wed)", "notting hill carnival · london (late aug)"],
-  "09": ["oktoberfest · munich (mid sep–early oct)", "london design festival", "grape harvest season"],
-  "10": ["oktoberfest ends (early oct)", "autumn colours", "halloween events"],
-  "11": ["día de los muertos · spain (nov 1–2)", "christmas markets begin (late nov · vienna, strasbourg)", "bonfire night · uk (nov 5)"],
-  "12": ["christmas markets peak · vienna, prague, strasbourg, cologne, geneva", "santa / lapland season", "new year's eve"],
+  "01": ["빈 신년음악회 · 비엔나", "베네치아 카니발 시작 (1월 말)", "오로라 시즌 · 라플란드 / 트롬쇠"],
+  "02": ["베네치아 카니발", "니스 카니발", "눈 시즌 · 라플란드"],
+  "03": ["쾨켄호프 튤립 개장 · 네덜란드 (3월 중·말)", "파리 벚꽃 (3월 말)", "성 패트릭의 날 · 더블린 (3/17)"],
+  "04": ["쾨켄호프 튤립 절정", "세비야 페리아 · 스페인", "유럽 곳곳 부활절 마켓"],
+  "05": ["쾨켄호프 5월 초까지", "유로비전", "칸 영화제 (5월 중순)"],
+  "06": ["미드서머 · 북유럽 (~6/21)", "이탈리아 / 그리스 시즌 개막", "북유럽 백야"],
+  "07": ["산페르민 소몰이 축제 · 팜플로나 (7/6~14)", "아비뇽 페스티벌", "지중해 성수기"],
+  "08": ["에든버러 프린지", "라 토마티나 · 스페인 (마지막 수요일)", "노팅힐 카니발 · 런던 (8월 말)"],
+  "09": ["옥토버페스트 · 뮌헨 (9월 중순~10월 초)", "런던 디자인 페스티벌", "포도 수확철"],
+  "10": ["옥토버페스트 종료 (10월 초)", "단풍철", "핼러윈 이벤트"],
+  "11": ["디아 데 로스 무에르토스 · 스페인 (11/1~2)", "크리스마스 마켓 시작 (11월 말 · 비엔나·스트라스부르)", "본파이어 나이트 · 영국 (11/5)"],
+  "12": ["크리스마스 마켓 절정 · 비엔나·프라하·스트라스부르·쾰른·제네바", "산타 / 라플란드 시즌", "새해 전야"],
 };
 
 const DAILY = [
@@ -130,6 +130,7 @@ async function getWeather(lat, lon) {
 
 export default function App() {
   const [loaded, setLoaded] = useState(false);
+  const [theme, setTheme] = useState("light");
   const [tab, setTab] = useState("today");
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [logs, setLogs] = useState({});
@@ -142,10 +143,12 @@ export default function App() {
       const lg = await store.get("logs");
       const bl = await store.get("blog");
       const mx = await store.get("monthlyx");
+      const th = await store.get("theme");
       if (s) setSettings({ ...DEFAULT_SETTINGS, ...s, geo: { ...DEFAULT_SETTINGS.geo, ...(s.geo || {}) }, links: { ...DEFAULT_SETTINGS.links, ...(s.links || {}) } });
       if (lg) setLogs(lg);
       if (bl) setBlogDone(bl);
       if (mx) setMonthlyx(mx);
+      if (th) setTheme(th);
       setLoaded(true);
     })();
   }, []);
@@ -154,6 +157,7 @@ export default function App() {
   const saveSettings = useCallback((next) => { setSettings(next); store.set("settings", next); }, []);
   const saveBlog = useCallback((next) => { setBlogDone(next); store.set("blog", next); }, []);
   const saveMonthlyx = useCallback((next) => { setMonthlyx(next); store.set("monthlyx", next); }, []);
+  const toggleTheme = useCallback(() => { setTheme((t) => { const n = t === "dark" ? "light" : "dark"; store.set("theme", n); return n; }); }, []);
 
   const tk = todayKey();
   const todayLog = logs[tk] || {};
@@ -186,7 +190,7 @@ export default function App() {
   if (!loaded) return (<div className="jx-root"><Style /><div className="jx-loading">loading…</div></div>);
 
   return (
-    <div className="jx-root">
+    <div className={"jx-root" + (theme === "dark" ? " dark" : "")}>
       <Style />
       <div className="jx-shell">
         {tab === "today" && (
@@ -198,7 +202,7 @@ export default function App() {
             monthItems={monthItems} addMonthly={addMonthly} toggleMonthly={toggleMonthly} removeMonthly={removeMonthly} />
         )}
         {tab === "stats" && <Dashboard logs={logs} blogDone={blogDone} />}
-        {tab === "more" && <More settings={settings} saveSettings={saveSettings} />}
+        {tab === "more" && <More settings={settings} saveSettings={saveSettings} theme={theme} toggleTheme={toggleTheme} />}
         {tab === "today" && <Voice openLink={openLink} addExtra={addExtra} links={settings.links} goSettings={() => setTab("more")} />}
 
         <nav className="jx-nav">
@@ -403,11 +407,11 @@ function Voice({ openLink, addExtra, links, goSettings }) {
   const toggle = () => {
     if (listening) { recRef.current?.stop(); setListening(false); return; }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { setResult({ type: "error", msg: "음성은 배포 후 작동해" }); return; }
+    if (!SR) { setResult({ type: "error", msg: "음성은 배포본에서 작동해" }); return; }
     let rec; try { rec = new SR(); } catch { setResult({ type: "error", msg: "마이크를 못 켰어" }); return; }
     rec.lang = "ko-KR"; rec.interimResults = false; rec.maxAlternatives = 1;
     rec.onresult = (e) => handle(e.results[0][0].transcript);
-    rec.onerror = () => { setListening(false); setResult({ type: "error", msg: "안 들렸어. 다시" }); };
+    rec.onerror = () => { setListening(false); setResult({ type: "error", msg: "안 들렸어. 다시 눌러봐" }); };
     rec.onend = () => setListening(false);
     try { rec.start(); setListening(true); setResult(null); recRef.current = rec; } catch { setResult({ type: "error", msg: "마이크 권한 확인해줘" }); }
   };
@@ -415,9 +419,9 @@ function Voice({ openLink, addExtra, links, goSettings }) {
     <>
       {result && (
         <div className="jx-vcard">
-          {result.type === "task" && <p>added: <b>{result.text}</b></p>}
-          {result.type === "open" && (<p>opening {result.label}. <button onClick={() => openLink(result.link)}>open ↗</button></p>)}
-          {result.type === "nolink" && (<p>{result.label} url not set. <button onClick={goSettings}>set it</button></p>)}
+          {result.type === "task" && <p>추가됨: <b>{result.text}</b></p>}
+          {result.type === "open" && (<p>{result.label} 여는 중. <button onClick={() => openLink(result.link)}>open ↗</button></p>)}
+          {result.type === "nolink" && (<p>{result.label} url 미설정. <button onClick={goSettings}>설정하기</button></p>)}
           {result.type === "error" && <p>{result.msg}</p>}
           <button className="jx-vclose" onClick={() => setResult(null)}>×</button>
         </div>
@@ -478,7 +482,7 @@ function Dashboard({ logs, blogDone }) {
 function Stat({ n, label }) { return (<div className="jx-stat"><span className="jx-statn">{n}</span><span className="jx-statl">{label}</span></div>); }
 
 /* ── more ── */
-function More({ settings, saveSettings }) {
+function More({ settings, saveSettings, theme, toggleTheme }) {
   const [workout, setWorkout] = useState(null);
   const [idea, setIdea] = useState(null);
   const [evt, setEvt] = useState("");
@@ -494,24 +498,24 @@ function More({ settings, saveSettings }) {
 
   const setCity = async () => {
     const name = cityInput.trim(); if (!name) return;
-    setGeoStatus("finding…");
+    setGeoStatus("찾는 중…");
     try {
       const g = await geocode(name);
-      if (!g) { setGeoStatus("not found"); saveSettings({ ...settings, city: name.toLowerCase() }); return; }
+      if (!g) { setGeoStatus("도시를 못 찾음"); saveSettings({ ...settings, city: name.toLowerCase() }); return; }
       saveSettings({ ...settings, city: g.name, geo: { lat: g.lat, lon: g.lon, tz: g.tz } });
-      setCityInput(g.name); setGeoStatus("set");
-    } catch { setGeoStatus("offline · saved name only"); saveSettings({ ...settings, city: name.toLowerCase() }); }
+      setCityInput(g.name); setGeoStatus("설정됨");
+    } catch { setGeoStatus("오프라인 · 이름만 저장됨"); saveSettings({ ...settings, city: name.toLowerCase() }); }
   };
   const useMyLocation = () => {
-    if (!navigator.geolocation) { setGeoStatus("no location here"); return; }
-    setGeoStatus("locating…");
+    if (!navigator.geolocation) { setGeoStatus("여기선 위치 사용 불가"); return; }
+    setGeoStatus("위치 찾는 중…");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         saveSettings({ ...settings, geo: { lat: pos.coords.latitude, lon: pos.coords.longitude, tz } });
-        setGeoStatus("using your location · set the name above");
+        setGeoStatus("현재 위치 사용 · 위 이름은 직접 설정해");
       },
-      () => setGeoStatus("location blocked here · works on deploy")
+      () => setGeoStatus("위치 차단됨 · 배포본에선 작동")
     );
   };
 
@@ -519,15 +523,20 @@ function More({ settings, saveSettings }) {
     <section className="jx-page">
       <p className="jx-eyebrow">more</p>
 
+      <div className="jx-themebar">
+        <span>다크 모드</span>
+        <button className={"jx-switch" + (theme === "dark" ? " on" : "")} onClick={toggleTheme} aria-label="dark mode"><span /></button>
+      </div>
+
       <div className="jx-card">
         <div className="jx-cardhead"><span>workout pick</span><button className="jx-roll" onClick={rollWorkout}>{workout ? "again ↻" : "pick"}</button></div>
         {workout ? (<div><p className="jx-wtitle">{workout.t} · {workout.m} min</p><ul className="jx-wlist">{workout.l.map((x, i) => <li key={i}>{x}</li>)}</ul></div>)
-          : (<p className="jx-empty">mat at the dorm, or a run. tap pick.</p>)}
+          : (<p className="jx-empty">기숙사에서 매트, 아니면 러닝. pick 눌러봐.</p>)}
       </div>
 
       <div className="jx-card">
         <div className="jx-cardhead"><span>next reel idea</span><button className="jx-roll" onClick={rollIdea}>{idea ? "again ↻" : "pick"}</button></div>
-        {idea ? (<p className="jx-idea">{idea.t} <span className="jx-tag">[{idea.f}]</span></p>) : (<p className="jx-empty">stuck on today's short. tap pick.</p>)}
+        {idea ? (<p className="jx-idea">{idea.t} <span className="jx-tag">[{idea.f}]</span></p>) : (<p className="jx-empty">오늘 쇼츠 막혔으면 pick 눌러봐.</p>)}
       </div>
 
       <div className="jx-card">
@@ -535,24 +544,24 @@ function More({ settings, saveSettings }) {
         {seedEvents.length > 0 && (
           <ul className="jx-seedlist">{seedEvents.map((e, i) => (<li key={i}><span className="jx-seeddot" />{e}</li>))}</ul>
         )}
-        <p className="jx-sublabel">your notes</p>
+        <p className="jx-sublabel">내 메모</p>
         {settings.events && settings.events.length > 0 ? (
           <ul className="jx-evlist">{settings.events.map((e, i) => (<li key={i}><span>{e}</span><button onClick={() => rmEvent(i)} className="jx-rm">remove</button></li>))}</ul>
-        ) : (<p className="jx-empty">add your own below.</p>)}
+        ) : (<p className="jx-empty">아래에 직접 추가해.</p>)}
         <div className="jx-evadd">
-          <input value={evt} onChange={(e) => setEvt(e.target.value)} placeholder="e.g. christmas market, vienna" onKeyDown={(e) => e.key === "Enter" && addEvent()} />
+          <input value={evt} onChange={(e) => setEvt(e.target.value)} placeholder="예: 크리스마스 마켓, 비엔나" onKeyDown={(e) => e.key === "Enter" && addEvent()} />
           <button onClick={addEvent}>add</button>
         </div>
       </div>
 
       <div className="jx-card">
         <div className="jx-cardhead"><span>current city</span></div>
-        <p className="jx-empty" style={{ marginBottom: 8 }}>sets the day line, weather and the away clock — all at once.</p>
+        <p className="jx-empty" style={{ marginBottom: 8 }}>데이라인 · 날씨 · 옆 시계를 한 번에 바꿔.</p>
         <div className="jx-evadd">
           <input value={cityInput} onChange={(e) => setCityInput(e.target.value)} placeholder="london, paris, lisbon…" onKeyDown={(e) => e.key === "Enter" && setCity()} />
           <button onClick={setCity}>set</button>
         </div>
-        <button className="jx-loc" onClick={useMyLocation}>use my location (weather)</button>
+        <button className="jx-loc" onClick={useMyLocation}>내 위치 사용 (날씨)</button>
         {geoStatus && <p className="jx-geostatus">{geoStatus}</p>}
       </div>
 
@@ -565,7 +574,7 @@ function More({ settings, saveSettings }) {
           <div className="jx-field" key={k}><label>{label}</label><input value={settings.links[k]} onChange={(e) => setLink(k, e.target.value)} placeholder="https://…" /></div>
         ))}
       </div>
-      <p className="jx-foot">saved automatically</p>
+      <p className="jx-foot">자동 저장됨</p>
     </section>
   );
 }
@@ -576,7 +585,7 @@ function Style() {
     <style>{`
     .jx-root{
       --paper:#FBFBF6; --grid:#E9EAEE; --surface:#FFFFFF; --ink:#1A1A1F; --muted:#9A9A92;
-      --blue:#5479B0; --blue-soft:#E9EEF7; --line:#E6E6DE;
+      --blue:#5479B0; --blue-soft:#E9EEF7; --line:#E6E6DE; --ring:#C7C7BD; --navbg:rgba(251,251,246,.9);
       --mono: ui-monospace,'SF Mono','Cascadia Code','Roboto Mono',Menlo,Consolas,'Apple SD Gothic Neo',monospace;
       --sans: -apple-system,BlinkMacSystemFont,'Segoe UI','Pretendard','Apple SD Gothic Neo','Malgun Gothic',Roboto,sans-serif;
       min-height:100%;
@@ -585,6 +594,15 @@ function Style() {
       background-size:26px 26px;
       color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;
     }
+        .jx-root.dark{
+      --paper:#14151A; --grid:#1E2027; --surface:#1B1D24; --ink:#ECECE8; --muted:#7A7C84;
+      --blue:#7E9FD6; --blue-soft:rgba(126,159,214,.16); --line:#262932; --ring:#3A3D47; --navbg:rgba(20,21,26,.92);
+    }
+    .jx-themebar{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px;font-family:var(--mono);font-size:12px;color:var(--ink);}
+    .jx-switch{width:44px;height:26px;border-radius:13px;border:1px solid var(--line);background:var(--blue-soft);position:relative;cursor:pointer;padding:0;transition:background .15s;}
+    .jx-switch span{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--muted);transition:transform .18s,background .18s;}
+    .jx-switch.on{background:var(--blue);}
+    .jx-switch.on span{transform:translateX(18px);background:var(--paper);}
     .jx-loading{font-family:var(--mono);color:var(--muted);padding:80px 0;text-align:center;font-size:13px;}
     .jx-shell{max-width:430px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;}
     .jx-page{flex:1;padding:34px 26px 26px;}
@@ -617,7 +635,7 @@ function Style() {
     .jx-list.thin{border-top:1px dashed var(--line);}
     .jx-row{display:flex;align-items:center;gap:13px;padding:14px 2px;border-bottom:1px solid var(--line);}
     .jx-list.thin .jx-row{border-bottom:1px dashed var(--line);}
-    .jx-check{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid #C7C7BD;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,border-color .15s;padding:0;}
+    .jx-check{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--ring);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,border-color .15s;padding:0;}
     .jx-check.sm{width:18px;height:18px;}
     .jx-check.on{background:var(--blue);border-color:var(--blue);}
     .jx-rowmain{flex:1;display:flex;align-items:baseline;gap:9px;background:none;border:none;text-align:left;cursor:pointer;padding:0;font-family:var(--sans);}
@@ -632,7 +650,7 @@ function Style() {
     .jx-addrow{display:flex;gap:7px;margin-top:12px;}
     .jx-addrow input{flex:1;font-family:var(--sans);font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);}
     .jx-addrow input::placeholder{color:var(--muted);}
-    .jx-addrow button{font-family:var(--mono);font-size:12px;padding:0 16px;background:var(--blue);color:#fff;border:none;border-radius:9px;cursor:pointer;}
+    .jx-addrow button{font-family:var(--mono);font-size:12px;padding:0 16px;background:var(--blue);color:var(--paper);border:none;border-radius:9px;cursor:pointer;}
 
     .jx-monthsec{margin-top:24px;}
     .jx-monthsec .jx-addrow{margin-top:10px;}
@@ -671,7 +689,7 @@ function Style() {
     .jx-evadd{display:flex;gap:7px;margin-top:12px;}
     .jx-evadd input{flex:1;font-family:var(--sans);font-size:13px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);}
     .jx-evadd input::placeholder{color:var(--muted);}
-    .jx-evadd button{font-family:var(--mono);font-size:12px;padding:0 14px;background:var(--ink);color:#fff;border:none;border-radius:8px;cursor:pointer;}
+    .jx-evadd button{font-family:var(--mono);font-size:12px;padding:0 14px;background:var(--ink);color:var(--paper);border:none;border-radius:8px;cursor:pointer;}
     .jx-loc{margin-top:10px;width:100%;font-family:var(--mono);font-size:12px;color:var(--blue);background:var(--blue-soft);border:none;border-radius:8px;padding:10px;cursor:pointer;}
     .jx-geostatus{font-family:var(--mono);font-size:11px;color:var(--muted);margin:8px 0 0;}
     .jx-field{margin-top:11px;}
@@ -691,7 +709,7 @@ function Style() {
     .jx-vclose{position:absolute;top:8px;right:9px;color:var(--muted)!important;text-decoration:none!important;font-size:14px!important;}
     @media(min-width:470px){.jx-fab{right:calc(50vw - 215px + 16px);}.jx-vcard{right:calc(50vw - 215px + 16px);}}
 
-    .jx-nav{position:sticky;bottom:0;display:flex;background:rgba(251,251,246,.9);backdrop-filter:blur(8px);border-top:1px solid var(--line);z-index:10;}
+    .jx-nav{position:sticky;bottom:0;display:flex;background:var(--navbg);backdrop-filter:blur(8px);border-top:1px solid var(--line);z-index:10;}
     .jx-navbtn{flex:1;font-family:var(--mono);font-size:12px;padding:15px 0;background:none;border:none;color:var(--muted);cursor:pointer;}
     .jx-navbtn.on{color:var(--ink);}
 
